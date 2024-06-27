@@ -5,4 +5,4 @@ INTERSECT
 SELECT visit_date,
        person_id
 FROM person_visits
-ORDER BY acion_date, person_id DESC
+ORDER BY acion_date, person_id DESC;
