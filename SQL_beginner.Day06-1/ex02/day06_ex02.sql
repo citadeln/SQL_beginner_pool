@@ -1,7 +1,7 @@
 SELECT  p.name,
         pizza_name,
         price,
-        price - price * discount / 100 AS discount_price,
+        round(price - price * discount / 100, 2) AS discount_price,
         pz.name
 FROM person_order po
 JOIN menu ON po.menu_id = menu.id
