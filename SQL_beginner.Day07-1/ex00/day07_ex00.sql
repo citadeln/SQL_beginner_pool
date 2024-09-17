@@ -4,3 +4,5 @@ SELECT  person_id,
 FROM person_visits
 GROUP BY person_id
 ORDER BY 2 DESC, 1;
+
+--pg_dump -U monroe -h 127.0.0.1 -p 5432 -d pool2 > backup.sql
