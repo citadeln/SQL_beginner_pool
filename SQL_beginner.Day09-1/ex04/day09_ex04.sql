@@ -5,9 +5,10 @@ RETURNS TABLE (
         age integer,
         gender varchar,
         address varchar
-) AS $$
-        (SELECT * FROM person
-         WHERE person.gender = 'female');
+) AS 
+$$
+SELECT * FROM person
+WHERE person.gender = 'female';
 $$ LANGUAGE sql;
 
 CREATE OR REPLACE FUNCTION fnc_persons_male()
@@ -17,9 +18,10 @@ RETURNS TABLE (
         age integer,
         gender varchar,
         address varchar
-) AS $$
-        (SELECT * FROM person
-         WHERE person.gender = 'male');
+) AS 
+$$
+SELECT * FROM person
+WHERE person.gender = 'male';
 $$ LANGUAGE sql;
 
 SELECT *
