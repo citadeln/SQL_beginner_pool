@@ -1,38 +1,37 @@
 insert into currency values (100, 'EUR', 0.85, '2022-01-01 13:29');
 insert into currency values (100, 'EUR', 0.79, '2022-01-08 13:29');
 
-CREATE OR REPLACE FUNCTION get_nearest_rate_to_usd(pcurrency_id INTEGER, pbalance_date TIMESTAMP)
-RETURNS NUMERIC AS $$
-DECLARE
-    nearest_rate NUMERIC;
-BEGIN
-    SELECT rate_to_usd INTO nearest_rate
-    FROM currency
-    WHERE id = pcurrency_id
-    AND updated <= pbalance_date
-    ORDER BY updated DESC
-    LIMIT 1;
-    
-    IF nearest_rate IS NULL THEN
-        SELECT rate_to_usd INTO nearest_rate
-        FROM currency
-        WHERE id = pcurrency_id
-        AND updated > pbalance_date
-        ORDER BY updated ASC
-        LIMIT 1;
-    END IF;
+WITH cur_cte AS (SELECT b.user_id     AS bui,
+                        b.money,
+                        b.updated,
+                        c.name        AS cur_name,
+                        c.rate_to_usd AS cur_rate,
+                        c.updated     AS cur_updated
+                 FROM balance b
+                          JOIN currency c
+                               ON b.currency_id = c.id),
 
-    RETURN COALESCE(nearest_rate, 1);
-END;
-$$ LANGUAGE plpgsql;
-SELECT 
-    COALESCE("user".name, 'not defined') AS name,
-    COALESCE("user".lastname, 'not defined') AS lastname,
-    currency.name AS currency_name,
-    balance.money * get_nearest_rate_to_usd(balance.currency_id, balance.updated) AS currency_in_usd
-FROM balance 
-FULL JOIN "user" ON "user".id = balance.user_id
-INNER JOIN (select DISTINCT id, name 
-            from currency) as currency
-        ON currency.id = balance.currency_id
+     all_join AS (SELECT q2.id, q2.cur_name, q2.money, q2.updated, COALESCE(q1.diff, q2.diff) new_diff
+                  FROM (SELECT cur_cte.bui AS id, cur_name, money, updated, MIN(updated - cur_updated) AS diff
+                        FROM cur_cte
+                        WHERE updated - cur_updated > INTERVAL '0 days'
+                        GROUP BY 1, 2, 3, 4) q1
+                           FULL JOIN (SELECT cur_cte.bui                AS id,
+                                             cur_name,
+                                             money,
+                                             updated,
+                                             MAX(updated - cur_updated) AS diff
+                                      FROM cur_cte
+                                      WHERE updated - cur_updated < INTERVAL '0 days'
+                                      GROUP BY 1, 2, 3, 4) q2
+                                     ON q1.id = q2.id AND q1.cur_name = q2.cur_name AND q1.money = q2.money AND
+                                        q1.updated = q2.updated)
+
+SELECT COALESCE(u.name, 'not defined'),
+       COALESCE(u.lastname, 'not defined'),
+       aj.cur_name,
+       aj.money * cu.rate_to_usd AS currency_in_usd
+FROM all_join aj
+         LEFT JOIN "user" u ON aj.id = u.id
+         LEFT JOIN currency cu ON aj.new_diff = (aj.updated - cu.updated) AND aj.cur_name = cu.name
 ORDER BY 1 DESC, 2 ASC, 3 ASC;
